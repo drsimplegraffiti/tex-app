@@ -18,6 +18,10 @@ app.get('/', (req, res) => {
   res.send('Hello World!');
 });
 
+app.get('/greet', (req, res) => {
+  res.send('Hello World!');
+});
+
 app.use('/api', userRoutes);
 
 // 404 error
