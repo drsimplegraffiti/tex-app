@@ -10,7 +10,7 @@ exports.SignUp = async (req, res) => {
     }
     const checkExistingUser = await User.findOne({ email });
     if (checkExistingUser) {
-      return res.status(400).json({ message: 'User already exists' }); // this condition needs to be stopped if error is thrown
+      return res.status(400).json({ message: 'User already exists.' }); // this condition needs to be stopped if error is thrown
     }
 
     // create a new user
