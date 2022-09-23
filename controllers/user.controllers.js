@@ -22,3 +22,23 @@ exports.SignUp = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
+// user login
+exports.Login = async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    // validate
+    if (!(email && password)) {
+      return res.status(400).json({ message: 'All input is required' });
+    }
+    const user = await User.findOne({ email });
+    if (user && (await user.comparePassword(password))) {
+      await user.generateAuthToken();
+      return res.status(200).json({ user });
+    }
+    return res.status(400).json({ message: 'Invalid credentials' });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
