@@ -41,6 +41,13 @@ exports.Login = async (req, res) => {
       await user.generateAuthToken();
       return res.status(200).json({ user });
     }
+
+    // toggle remember me
+    if (req.body.remember) {
+      req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // Cookie expires after 30 days
+    } else {
+      req.session.cookie.expires = false; // Cookie expires at end of session
+    }
     return res.status(400).json({ message: 'Invalid credentials' });
   } catch (error) {
     logger.error(error);
@@ -150,3 +157,230 @@ exports.ResetPassword = async (req, res) => {
   }
 };
 
+// Login with google
+exports.GoogleLogin = async (req, res) => {
+  try {
+    const { tokenId } = req.body;
+    const response = await client.verifyIdToken({
+      idToken: tokenId,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const { email_verified, name, email } = response.payload;
+    if (email_verified) {
+      const user = await User.findOne({ email });
+      if (user) {
+        await user.generateAuthToken();
+        return res.status(200).json({ user });
+      } else {
+        const password = email + process.env.GOOGLE_CLIENT_SECRET;
+        const user = await User.create({ username: name, email, password });
+        await user.generateAuthToken();
+        return res.status(201).json({ user });
+      }
+    }
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// Login with facebook
+exports.FacebookLogin = async (req, res) => {
+  try {
+    const { userID, accessToken } = req.body;
+    const url = `https://graph.facebook.com/v2.11/${userID}/?fields=id,name,email&access_token=${accessToken}`;
+    const response = await fetch(url, {
+      method: 'GET',
+    });
+    const data = await response.json();
+    const { email, name } = data;
+    const user = await User.findOne({ email });
+    if (user) {
+      await user.generateAuthToken();
+      return res.status(200).json({ user });
+    } else {
+      const password = email + process.env.FACEBOOK_CLIENT_SECRET;
+      const user = await User.create({ username: name, email, password });
+      await user.generateAuthToken();
+      return res.status(201).json({ user });
+    }
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// search by keyword
+exports.SearchByKeyword = async (req, res) => {
+  const { keyword } = req.query;
+  try {
+    const user = await User.find({
+      $or: [
+        { username: { $regex: keyword, $options: 'i' } },
+        { email: { $regex: keyword, $options: 'i' } },
+      ],
+    });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    return res.status(200).json({ user });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+
+// See all users registered on the platform weekly
+exports.WeeklyUsers = async (req, res) => {
+  try {
+    const user = await User.find({
+      createdAt: {
+        $gte: new Date(new Date().setDate(new Date().getDate() - 7)),
+      },
+    });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    return res.status(200).json({ user });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+
+// See all users registered on the platform monthly
+exports.MonthlyUsers = async (req, res) => {
+  try {
+    const user = await User.find({
+      createdAt: {
+        $gte: new Date(new Date().setDate(new Date().getDate() - 30)),
+      },
+    });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    return res.status(200).json({ user });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// See all users registered on the platform yearly
+exports.YearlyUsers = async (req, res) => {
+  try {
+    const user = await User.find({
+      createdAt: {
+        $gte: new Date(new Date().setDate(new Date().getDate() - 365)),
+      },
+    });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    return res.status(200).json({ user });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};  
+
+// See all users registered on the platform
+exports.AllUsers = async (req, res) => {
+  try {
+    const user = await User.find();
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    return res.status(200).json({ user });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+
+//user logout
+exports.Logout = async (req, res) => {
+  try {
+    req.user.tokens = req.user.tokens.filter((token) => {
+      return token.token !== req.token;
+    });
+    await req.user.save();
+    return res.status(200).json({ message: 'Logout successful' });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// edit user 
+exports.EditUser = async (req, res) => {
+  const updates = Object.keys(req.body);
+  const allowedUpdates = ['username', 'email', 'password'];
+  const isValidOperation = updates.every((update) =>
+    allowedUpdates.includes(update)
+  );
+  if (!isValidOperation) {
+    return res.status(400).json({ message: 'Invalid updates' });
+  }
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    updates.forEach((update) => (user[update] = req.body[update]));
+    await user.save();
+    return res.status(200).json({ user });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// soft delete user
+exports.DeleteUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    user.isDeleted = true;
+    await user.save();
+    return res.status(200).json({ message: 'User deleted successfully' });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+
+// hard delete user
+exports.HardDeleteUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    await user.remove();
+    return res.status(200).json({ message: 'User deleted successfully' });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// get user by id
+exports.GetUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    return res.status(200).json({ user });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
