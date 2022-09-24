@@ -64,10 +64,9 @@ exports.UploadImage = async (req, res) => {
     });
 
     // resize image using sharp use path.join()
-   const resizedImage = await sharp(req.file.path)
+    const resizedImage = await sharp(req.file.path)
       .resize(150, 150)
       .toFile(`./public/images/${req.file.filename}.png`);
-    
 
     // save image to user model
     user.image = result.secure_url;
@@ -80,12 +79,13 @@ exports.UploadImage = async (req, res) => {
   }
 };
 
-
 // search user using regex
 exports.SearchUser = async (req, res) => {
   const { username } = req.query;
   try {
-    const user = await User.find({ username: { $regex: username, $options: 'i' } });
+    const user = await User.find({
+      username: { $regex: username, $options: 'i' },
+    });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -96,4 +96,57 @@ exports.SearchUser = async (req, res) => {
   }
 };
 
+//forgot password
+exports.ForgotPassword = async (req, res) => {
+  const { email } = req.body;
+  try {
+    // validate
+    if (!email) {
+      return res.status(400).json({ message: 'All input is required' });
+    }
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+    // generate token
+    const token = await user.generateAuthToken();
+    // send email
+    const link = `http://localhost:3000/reset-password/${token}`;
+    const mailOptions = {
+      from: process.env.EMAIL,
+      to: email,
+      subject: 'Reset Password',
+      html: `<p>Click <a href="${link}">here</a> to reset your password</p>`,
+    };
+    await transporter.sendMail(mailOptions);
+    return res.status(200).json({ message: 'Email sent' });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+
+// reset password
+exports.ResetPassword = async (req, res) => {
+  const { password } = req.body;
+  try {
+    // validate
+    if (!password) {
+      return res.status(400).json({ message: 'All input is required' });
+    }
+    const user = await User.findOne({ token: req.params.token });
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+    // hash password
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    await user.save();
+    return res.status(200).json({ message: 'Password reset successful' });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
 
