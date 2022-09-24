@@ -48,7 +48,7 @@ exports.Login = async (req, res) => {
     const token = await user.generateAuthToken();
     // set cookie
     if (rememberMe) {
-      req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; 
+      req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
     } else {
       req.session.cookie.expires = false;
     }
@@ -384,3 +384,48 @@ exports.GetUserById = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
+//switch user role to admin
+exports.SwitchToAdmin = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    user.role = 'admin';
+    await user.save();
+    return res.status(200).json({ message: 'User role changed to admin' });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+//switch user role to user
+exports.SwitchToUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    user.role = 'user';
+    await user.save();
+    return res.status(200).json({ message: 'User role changed to user' });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+//create groups for users
+exports.CreateGroup = async (req, res) => {
+  try {
+    const group = new Group(req.body);
+    await group.save();
+    return res.status(201).json({ group });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
