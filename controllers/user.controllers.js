@@ -28,27 +28,32 @@ exports.SignUp = async (req, res) => {
   }
 };
 
-// user login
+// user login and toggle remember me using req.session
 exports.Login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, rememberMe } = req.body;
   try {
     // validate
     if (!(email && password)) {
       return res.status(400).json({ message: 'All input is required' });
     }
     const user = await User.findOne({ email });
-    if (user && comparePassword(password)) {
-      await user.generateAuthToken();
-      return res.status(200).json({ user });
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
-
-    // toggle remember me
-    if (req.body.remember) {
-      req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // Cookie expires after 30 days
+    const isPasswordValid = await comparePassword(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+    // generate token
+    const token = await user.generateAuthToken();
+    // set cookie
+    if (rememberMe) {
+      req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; 
     } else {
-      req.session.cookie.expires = false; // Cookie expires at end of session
+      req.session.cookie.expires = false;
     }
-    return res.status(400).json({ message: 'Invalid credentials' });
+    req.session.token = token;
+    return res.status(200).json({ user });
   } catch (error) {
     logger.error(error);
     return res.status(500).json({ message: error.message });
@@ -132,7 +137,6 @@ exports.ForgotPassword = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
 
 // reset password
 exports.ResetPassword = async (req, res) => {
@@ -230,7 +234,6 @@ exports.SearchByKeyword = async (req, res) => {
   }
 };
 
-
 // See all users registered on the platform weekly
 exports.WeeklyUsers = async (req, res) => {
   try {
@@ -248,7 +251,6 @@ exports.WeeklyUsers = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
 
 // See all users registered on the platform monthly
 exports.MonthlyUsers = async (req, res) => {
@@ -284,7 +286,7 @@ exports.YearlyUsers = async (req, res) => {
     logger.error(error);
     return res.status(500).json({ message: error.message });
   }
-};  
+};
 
 // See all users registered on the platform
 exports.AllUsers = async (req, res) => {
@@ -300,7 +302,6 @@ exports.AllUsers = async (req, res) => {
   }
 };
 
-
 //user logout
 exports.Logout = async (req, res) => {
   try {
@@ -315,7 +316,7 @@ exports.Logout = async (req, res) => {
   }
 };
 
-// edit user 
+// edit user
 exports.EditUser = async (req, res) => {
   const updates = Object.keys(req.body);
   const allowedUpdates = ['username', 'email', 'password'];
@@ -354,7 +355,6 @@ exports.DeleteUser = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
 
 // hard delete user
 exports.HardDeleteUser = async (req, res) => {
