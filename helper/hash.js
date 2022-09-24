@@ -10,3 +10,4 @@ exports.comparePassword = async (password) => {
     throw new Error('Error comparing password');
   }
 };
+
