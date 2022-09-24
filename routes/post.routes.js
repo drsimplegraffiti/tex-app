@@ -12,8 +12,7 @@ router.put('/update/:id', authenticate, updatePost);
 router.delete('/delete/:id', authenticate, deletePost);
 router.put('/like', authenticate, likePost);
 router.put('/unlike', authenticate, unlikePost);
-router.put('/comment', authenticate, commentPost);
-router.put('/uncomment', authenticate, uncommentPost);
+
 
 
 module.exports = router;
