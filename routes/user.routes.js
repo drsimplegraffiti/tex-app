@@ -9,6 +9,8 @@ const {
   WeeklyUsers,
   MonthlyUsers,
   YearlyUsers,
+  ExportUsersJson,
+  ExportUsersCsv,
 } = require('../controllers/user.controllers');
 
 const authenticate = require('../middleware/auth');
@@ -22,6 +24,8 @@ router.get('/search/keyword', SearchByKeyword);
 router.get('/weeklyUsers', WeeklyUsers);
 router.get('/monthlyUsers', MonthlyUsers);
 router.get('/yearlyUsers', YearlyUsers);
+router.get('/exportJson', ExportUsersJson);
+router.get('/exportCsv', ExportUsersCsv);
 
 //upload image
 router.post('/upload', authenticate, upload.single('image'), UploadImage);

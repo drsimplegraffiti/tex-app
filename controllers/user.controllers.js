@@ -2,6 +2,7 @@ const User = require('../models/user.model');
 const logger = require('../logs/logger');
 const cloudinary = require('../utils/cloudinary');
 const sharp = require('sharp');
+const fs = require('fs');
 const { comparePassword } = require('../helper/hash');
 
 exports.SignUp = async (req, res) => {
@@ -429,3 +430,58 @@ exports.CreateGroup = async (req, res) => {
   }
 };
 
+const { Parser } = require('json2csv');
+
+//get all users and export to csv
+exports.ExportUsersCsv = async (req, res) => {
+  try {
+    const users = await User.find();
+    if (!users) {
+      return res.status(404).json({ message: 'Users not found' });
+    }
+    const fields = ['username', 'email', 'role', 'createdAt'];
+    const opts = { fields };
+    const parser = new Parser(opts);
+    const csv = parser.parse(users);
+
+    // save csv file to server
+    fs.writeFile('users.csv', csv, (err) => {
+      if (err) {
+        logger.error(err);
+        return res.status(500).json({ message: err.message });
+      }
+      return res.status(200).json({ message: 'File saved successfully' });
+    });
+    // res.setHeader('Content-Type', 'text/csv');
+    // res.setHeader('Content-Disposition', 'attachment; filename=users.csv');
+    // return res.status(200).send(csv);
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+//get all users and export as json
+exports.ExportUsersJson = async (req, res) => {
+  try {
+    const users = await User.find();
+    if (!users) {
+      return res.status(404).json({ message: 'Users not found' });
+    }
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename=users.json');
+
+    //save to file
+    fs.writeFile('users.json', JSON.stringify(users), (err) => {
+      if (err) {
+        logger.error(err);
+        return res.status(500).json({ message: err.message });
+      }
+      logger.info('File saved successfully');
+    });
+    res.status(200).send(users);
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
