@@ -445,16 +445,27 @@ exports.ExportUsersCsv = async (req, res) => {
     const csv = parser.parse(users);
 
     // save csv file to server
-    fs.writeFile('users.csv', csv, (err) => {
+    fs.writeFile('users.csv', csv, async (err) => {
       if (err) {
         logger.error(err);
         return res.status(500).json({ message: err.message });
       }
+
+      // send csv file to email
+      await sendEmail({
+        email: req.user.email,
+        subject: 'Users',
+        message: 'Users',
+        attachments: [
+          {
+            filename: 'users.csv',
+            path: 'users.csv',
+          },
+        ],
+      });
+
       return res.status(200).json({ message: 'File saved successfully' });
     });
-    // res.setHeader('Content-Type', 'text/csv');
-    // res.setHeader('Content-Disposition', 'attachment; filename=users.csv');
-    // return res.status(200).send(csv);
   } catch (error) {
     logger.error(error);
     return res.status(500).json({ message: error.message });
