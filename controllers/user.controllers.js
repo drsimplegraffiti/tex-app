@@ -431,6 +431,7 @@ exports.CreateGroup = async (req, res) => {
 };
 
 const { Parser } = require('json2csv');
+const sendEmail = require('../utils/mail');
 
 //get all users and export to csv
 exports.ExportUsersCsv = async (req, res) => {
@@ -496,3 +497,62 @@ exports.ExportUsersJson = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
+
+//share user profile link
+exports.ShareProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const link = `http://localhost:3000/api/users/${user._id}`;
+    await sendEmail({
+      email: req.user.email,
+      subject: 'User Profile',
+      message: link,
+    });
+    return res.status(200).json({ message: 'Link sent successfully' });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+
+//bulk create users
+exports.BulkCreateUsers = async (req, res) => {
+  try {
+    const users = req.body;
+    await User.insertMany(users);
+    return res.status(201).json({ message: 'Users created successfully' });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+//bulk delete users
+exports.BulkDeleteUsers = async (req, res) => {
+  try {
+    const users = req.body;
+    await User.deleteMany({ _id: { $in: users } });
+    return res.status(200).json({ message: 'Users deleted successfully' });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+//bulk update users
+exports.BulkUpdateUsers = async (req, res) => {
+  try {
+    const users = req.body;
+    await User.updateMany({ _id: { $in: users } }, { role: 'admin' });
+    return res.status(200).json({ message: 'Users updated successfully' });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
